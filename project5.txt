@@ -1,0 +1,124 @@
+Create Collections:
+
+
+db.createCollection("rooms")
+db.createCollection("guests")
+db.createCollection("reservations")
+db.createCollection("payments")
+
+
+Insert Rooms:
+
+
+db.rooms.insertMany([
+  { RoomID: "101", Type: "Single", Price: 100, Availability: true },
+  { RoomID: "102", Type: "Double", Price: 200, Availability: true },
+  { RoomID: "103", Type: "Suite", Price: 500, Availability: true },
+  ...
+])
+
+
+Query Available Rooms (Date Range):
+
+
+db.reservations.aggregate([
+  {
+    $match: {
+      $and: [
+        { CheckInDate: { $gte: ISODate("2024-01-01T00:00:00.000Z") } },
+        { CheckOutDate: { $lte: ISODate("2024-01-31T23:59:59.999Z") } }
+      ]
+    }
+  },
+  {
+    $lookup: {
+      from: "rooms",
+      localField: "RoomID",
+      foreignField: "RoomID",
+      as: "room"
+    }
+  },
+  {
+    $match: { "room.Availability": true }
+  },
+  {
+    $project: { RoomID: 1, Type: 1, Price: 1 }
+  }
+])
+
+
+Update Room Availability (Reservation Made):
+
+
+db.rooms.updateOne(
+  { RoomID: "101" },
+  { $set: { Availability: false } }
+)
+
+
+Delete Canceled Reservations:
+
+
+db.reservations.deleteMany({ Status: "Canceled" })
+
+
+Filter Rooms (Type & Price Range):
+
+
+db.rooms.find({
+  $and: [
+    { Type: "Double" },
+    { Price: { $gte: 150, $lte: 300 } }
+  ]
+})
+
+
+Use AND/OR (Type & Price Range):
+
+
+db.rooms.find({
+  $or: [
+    { $and: [{ Type: "Single" }, { Price: { $lte: 200 } }] },
+    { $and: [{ Type: "Double" }, { Price: { $gte: 250 } }] }
+  ]
+})
+
+
+Sort Rooms (Price Ascending):
+
+
+db.rooms.find().sort({ Price: 1 })
+
+
+Total Revenue (Aggregate Function):
+
+
+db.reservations.aggregate([
+  {
+    $group: {
+      _id: null,
+      TotalRevenue: { $sum: "$TotalCost" }
+    }
+  }
+])
+
+
+Group Reservations (Room Type & Count):
+
+
+db.reservations.aggregate([
+  {
+    $lookup: {
+      from: "rooms",
+      localField: "RoomID",
+      foreignField: "RoomID",
+      as: "room"
+    }
+  },
+  {
+    $group: {
+      _id: "$room.Type",
+      Count: { $sum: 1 }
+    }
+  }
+])
